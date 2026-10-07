@@ -86,6 +86,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add infra/services/api/deployment.yaml infra/services/frontend/deployment.yaml
-          git commit -m "Deploy image release ${IMAGE_VERSION}"
+          if ! git diff --cached --quiet; then
+            git commit -m "Deploy image release ${IMAGE_VERSION}"
+          fi
           git tag -a "v${IMAGE_VERSION}" "${GITHUB_SHA}" -m "Market Watcher image release ${IMAGE_VERSION}"
           git push --atomic origin HEAD:main "refs/tags/v${IMAGE_VERSION}"
