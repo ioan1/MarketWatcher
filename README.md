@@ -46,7 +46,6 @@ cert-manager, à l'image du dépôt Gallery. Le workflow publie les images
 `docker.redby.fr/market-watcher/{api,frontend}` pour `linux/amd64` et
 `linux/arm64`, puis actualise leurs tags dans `infra/`.
 
-Configurer les secrets GitHub `REGISTRY_USERNAME` et `REGISTRY_PASSWORD` pour
-autoriser la publication sur `docker.redby.fr`. Le cluster doit synchroniser le
-dossier `infra/` (ou recevoir les manifests par le mécanisme de déploiement
-habituel) et disposer du cluster issuer `letsencrypt-prod`.
+Le workflow publie anonymement sur `docker.redby.fr`. Le cluster doit
+synchroniser le dossier `infra/` (ou recevoir les manifests par le mécanisme de
+déploiement habituel) et disposer du cluster issuer `letsencrypt-prod`.
