@@ -293,7 +293,7 @@ export default function App() {
                   {chartData?.length ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 14, right: 12, bottom: 2, left: 4 }}>
-                        <CartesianGrid vertical={false} stroke="#e7e9e4" strokeDasharray="3 5" />
+                        <CartesianGrid vertical={false} stroke="#303d35" strokeDasharray="3 5" />
                         <XAxis
                           axisLine={false}
                           dataKey="time"
@@ -301,7 +301,7 @@ export default function App() {
                           tickFormatter={(value) => formatTime(value, marketTimezone)}
                           tickLine={false}
                           tickMargin={12}
-                          tick={{ fill: '#878d88', fontSize: 11 }}
+                          tick={{ fill: '#9ba99f', fontSize: 11 }}
                           type="number"
                           ticks={Array.from({ length: 7 }, (_, index) => chartSession.start + index * (chartSession.end - chartSession.start) / 6)}
                         />
@@ -310,17 +310,17 @@ export default function App() {
                           domain={['auto', 'auto']}
                           tickFormatter={(value) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value)}
                           tickLine={false}
-                          tick={{ fill: '#878d88', fontSize: 11 }}
+                          tick={{ fill: '#9ba99f', fontSize: 11 }}
                           width={68}
                         />
                         <Tooltip content={<QuoteTooltip code={quote.currency} timeZone={marketTimezone} />} />
                         <ReferenceLine y={quote.target} stroke="#da765f" strokeDasharray="5 5" strokeWidth={1.5} />
                         <Line
-                          activeDot={{ r: 5, fill: '#187b68', stroke: '#ffffff', strokeWidth: 2 }}
+                          activeDot={{ r: 5, fill: '#59c99c', stroke: '#e5eee8', strokeWidth: 2 }}
                           dataKey="price"
                           dot={false}
                           isAnimationActive={false}
-                          stroke="#187b68"
+                          stroke="#59c99c"
                           strokeWidth={2.5}
                           type="monotone"
                         />
