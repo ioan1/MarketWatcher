@@ -30,41 +30,17 @@ button { cursor: pointer; }
 
 .app-shell { min-height: 100vh; }
 
-.topbar {
-  height: 68px;
-  padding: 0 6.2%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #303d35;
-  background: rgba(17, 24, 20, 0.94);
-}
-
-.brand {
-  color: var(--ink);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.brand-mark, .instrument-icon, .empty-icon {
+.instrument-icon, .empty-icon {
   display: grid;
   place-items: center;
   color: var(--green);
   background: #243a2e;
 }
 
-.brand-mark { width: 31px; height: 31px; border-radius: 9px; }
-.brand-light { font-weight: 500; }
-.topbar-meta, .source-note { display: flex; align-items: center; gap: 8px; color: #707873; font-size: 12px; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #299677; box-shadow: 0 0 0 3px rgba(41, 150, 119, 0.12); }
 
 .workspace { width: min(1150px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 24px; }
 .field-label, .metric-label { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.08em; }
-.topbar-meta { display: flex; align-items: center; gap: 8px; color: #a3b0a8; font-size: 12px; }
 
 .watch-form {
   display: flex;
@@ -147,8 +123,6 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 600px) {
-  .topbar { height: 59px; padding: 0 18px; }
-  .topbar-meta { font-size: 10px; }
   .workspace { width: calc(100% - 28px); padding-top: 28px; }
   .watch-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; }
   .ticker-field, .target-field { width: auto; min-width: 0; }

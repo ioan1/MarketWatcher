@@ -184,17 +184,6 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Market Watcher, accueil">
-          <span className="brand-mark"><Activity size={19} strokeWidth={2.4} /></span>
-          <span>market<span className="brand-light">watcher</span></span>
-        </a>
-        <div className="topbar-meta">
-          <span className="live-dot" />
-          <span>Surveillance active</span>
-        </div>
-      </header>
-
       <section className="workspace">
         <form className="watch-form" onSubmit={startTracking}>
           <label className="field-group ticker-field">
