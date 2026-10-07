@@ -31,6 +31,16 @@ function currency(value, code = 'EUR') {
   }).format(value);
 }
 
+function signedEuros(value) {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    signDisplay: 'always',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatTime(value) {
   return new Intl.DateTimeFormat('fr-FR', {
     hour: '2-digit',
@@ -56,6 +66,12 @@ export default function App() {
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.title = tracked && quote
+      ? `${tracked.symbol} ${signedEuros(quote.targetDistance)} | Market Watcher`
+      : 'Market Watcher';
+  }, [tracked, quote]);
 
   useEffect(() => {
     if (!tracked) return undefined;
@@ -121,14 +137,6 @@ export default function App() {
       </header>
 
       <section className="workspace">
-        <div className="page-heading">
-          <div>
-            <p className="eyebrow">TABLEAU DE BORD <span> / </span> MARCHÉS</p>
-            <h1>Suivi de marché</h1>
-          </div>
-          <div className="source-note"><span className="source-mark">Y</span> Données Yahoo Finance</div>
-        </div>
-
         <form className="watch-form" onSubmit={startTracking}>
           <label className="field-group ticker-field">
             <span className="field-label">SYMBOLE</span>
