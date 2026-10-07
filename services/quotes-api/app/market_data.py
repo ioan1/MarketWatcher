@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9^=._-]{1,32}$")
 CACHE_TTL_SECONDS = 30
 
-_cache: dict[str, tuple[float, list[dict[str, float | str]], str]] = {}
+_cache: dict[str, tuple[float, list[dict[str, float | str]], str, str | None]] = {}
 _cache_lock = threading.Lock()
 
 
@@ -22,12 +22,14 @@ def build_quote(
     target: float,
     history: list[dict[str, float | str]],
     currency: str | None = None,
+    market_timezone: str | None = None,
 ) -> dict:
     current_price = float(history[-1]["price"])
     distance = target - current_price
     return {
         "symbol": symbol,
         "currency": currency or ("EUR" if symbol.endswith(".PA") else "USD"),
+        "marketTimezone": market_timezone or ("Europe/Paris" if symbol.endswith(".PA") else None),
         "target": target,
         "currentPrice": current_price,
         "targetDistance": distance,
@@ -37,14 +39,14 @@ def build_quote(
     }
 
 
-def fetch_market_data(symbol: str) -> tuple[list[dict[str, float | str]], str]:
+def fetch_market_data(symbol: str) -> tuple[list[dict[str, float | str]], str, str | None]:
     import yfinance as yf
 
     now = time.monotonic()
     with _cache_lock:
         cached = _cache.get(symbol)
         if cached and now - cached[0] < CACHE_TTL_SECONDS:
-            return cached[1], cached[2]
+            return cached[1], cached[2], cached[3]
 
     try:
         ticker = yf.Ticker(symbol)
@@ -78,16 +80,19 @@ def fetch_market_data(symbol: str) -> tuple[list[dict[str, float | str]], str]:
         raise RuntimeError("Aucune cotation disponible sur les dernières 24 heures")
 
     try:
-        currency = ticker.history_metadata.get("currency")
+        metadata = ticker.history_metadata or {}
     except Exception:
-        currency = None
+        metadata = {}
+    currency = metadata.get("currency")
     if not currency:
         try:
             currency = ticker.fast_info.get("currency")
         except Exception:
             currency = None
     currency = currency or ("EUR" if symbol.endswith(".PA") else "USD")
+    market_timezone = metadata.get("exchangeTimezoneName")
+    market_timezone = market_timezone or ("Europe/Paris" if symbol.endswith(".PA") else None)
 
     with _cache_lock:
-        _cache[symbol] = (time.monotonic(), history, currency)
-    return history, currency
+        _cache[symbol] = (time.monotonic(), history, currency, market_timezone)
+    return history, currency, market_timezone

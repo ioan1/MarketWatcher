@@ -12,9 +12,16 @@ class MarketDataTests(unittest.TestCase):
             validate_symbol("UBI.PA/../../etc")
 
     def test_builds_target_distance(self):
-        quote = build_quote("UBI.PA", 25.0, [{"time": "2026-10-07T10:00:00+00:00", "price": 20.0}])
+        quote = build_quote(
+            "UBI.PA",
+            25.0,
+            [{"time": "2026-10-07T10:00:00+00:00", "price": 20.0}],
+            "EUR",
+            "Europe/Paris",
+        )
 
         self.assertEqual(quote["currency"], "EUR")
+        self.assertEqual(quote["marketTimezone"], "Europe/Paris")
         self.assertEqual(quote["targetDistance"], 5.0)
         self.assertEqual(quote["targetDistancePercent"], 25.0)
 

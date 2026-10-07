@@ -20,8 +20,6 @@ import {
 } from 'recharts';
 import { fetchQuote } from './api.js';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function currency(value, code = 'EUR') {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -41,19 +39,79 @@ function signedEuros(value) {
   }).format(value);
 }
 
-function formatTime(value) {
+function formatTime(value, timeZone) {
   return new Intl.DateTimeFormat('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone,
   }).format(value);
 }
 
-function QuoteTooltip({ active, payload, label, code }) {
+function getMarketTimeParts(timestamp, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(timestamp);
+
+  return Object.fromEntries(
+    parts
+      .filter(({ type }) => ['year', 'month', 'day', 'hour', 'minute'].includes(type))
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+}
+
+function marketTimeToTimestamp({ year, month, day }, hour, timeZone) {
+  const localAsUtc = Date.UTC(year, month - 1, day, hour);
+  const displayed = getMarketTimeParts(localAsUtc, timeZone);
+  const displayedAsUtc = Date.UTC(
+    displayed.year,
+    displayed.month - 1,
+    displayed.day,
+    displayed.hour,
+    displayed.minute,
+  );
+  return localAsUtc - (displayedAsUtc - localAsUtc);
+}
+
+function buildMarketSession(history, timeZone) {
+  const points = history
+    .map((point) => ({ time: Date.parse(point.time), price: point.price }))
+    .filter((point) => Number.isFinite(point.time));
+  const sessionPoints = points.filter((point) => {
+    const { hour, minute } = getMarketTimeParts(point.time, timeZone);
+    const minutesSinceMidnight = hour * 60 + minute;
+    return minutesSinceMidnight >= 9 * 60 && minutesSinceMidnight <= 18 * 60;
+  });
+
+  if (sessionPoints.length === 0) {
+    return { data: [], start: null, end: null };
+  }
+
+  const latestSessionPoint = sessionPoints.reduce((latest, point) => (
+    point.time > latest.time ? point : latest
+  ));
+  const sessionDate = getMarketTimeParts(latestSessionPoint.time, timeZone);
+  const start = marketTimeToTimestamp(sessionDate, 9, timeZone);
+  const end = marketTimeToTimestamp(sessionDate, 18, timeZone);
+
+  return {
+    data: sessionPoints.filter((point) => point.time >= start && point.time <= end),
+    start,
+    end,
+  };
+}
+
+function QuoteTooltip({ active, payload, label, code, timeZone }) {
   if (!active || !payload?.length) return null;
 
   return (
     <div className="chart-tooltip">
-      <span>{formatTime(label)}</span>
+      <span>{formatTime(label, timeZone)}</span>
       <strong>{currency(payload[0].value, code)}</strong>
     </div>
   );
@@ -116,10 +174,11 @@ export default function App() {
     setTracked({ symbol: normalizedSymbol, target });
   }
 
-  const chartData = quote?.history.map((point) => ({
-    time: Date.parse(point.time),
-    price: point.price,
-  }));
+  const marketTimezone = quote?.marketTimezone;
+  const chartSession = quote
+    ? buildMarketSession(quote.history, marketTimezone)
+    : { data: [], start: null, end: null };
+  const chartData = chartSession.data;
   const distance = quote?.targetDistance ?? 0;
   const isAboveTarget = distance <= 0;
 
@@ -223,7 +282,7 @@ export default function App() {
                 <div className="chart-heading">
                   <div>
                     <h3>Évolution du cours</h3>
-                    <p>Fenêtre glissante de 24 heures</p>
+                    <p>Séance de marché · 09:00–18:00</p>
                   </div>
                   <div className="chart-legend">
                     <span><i className="legend-line price-line" /> Cours</span>
@@ -238,13 +297,13 @@ export default function App() {
                         <XAxis
                           axisLine={false}
                           dataKey="time"
-                          domain={[Date.now() - DAY_MS, Date.now()]}
-                          tickFormatter={formatTime}
+                          domain={[chartSession.start, chartSession.end]}
+                          tickFormatter={(value) => formatTime(value, marketTimezone)}
                           tickLine={false}
                           tickMargin={12}
                           tick={{ fill: '#878d88', fontSize: 11 }}
                           type="number"
-                          ticks={Array.from({ length: 7 }, (_, index) => Date.now() - DAY_MS + index * DAY_MS / 6)}
+                          ticks={Array.from({ length: 7 }, (_, index) => chartSession.start + index * (chartSession.end - chartSession.start) / 6)}
                         />
                         <YAxis
                           axisLine={false}
@@ -254,7 +313,7 @@ export default function App() {
                           tick={{ fill: '#878d88', fontSize: 11 }}
                           width={68}
                         />
-                        <Tooltip content={<QuoteTooltip code={quote.currency} />} />
+                        <Tooltip content={<QuoteTooltip code={quote.currency} timeZone={marketTimezone} />} />
                         <ReferenceLine y={quote.target} stroke="#da765f" strokeDasharray="5 5" strokeWidth={1.5} />
                         <Line
                           activeDot={{ r: 5, fill: '#187b68', stroke: '#ffffff', strokeWidth: 2 }}
@@ -273,7 +332,7 @@ export default function App() {
                 </div>
                 <div className="chart-footnote">
                   <span><Clock3 size={14} /> Actualisé {formatTime(Date.parse(quote.fetchedAt))}</span>
-                  <span>{quote.history.length} points de cotation</span>
+                  <span>{chartData.length} points de cotation</span>
                 </div>
               </div>
             </>
