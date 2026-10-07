@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-quotes-api
+  namespace: market-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-quotes-api
+  template:
+    metadata:
+      labels:
+        app: service-quotes-api
+    spec:
+      containers:
+        - name: quotes-api
+          image: docker.redby.fr/market-watcher/api:1.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

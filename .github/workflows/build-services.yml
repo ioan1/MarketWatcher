@@ -1,0 +1,97 @@
+name: Build and deploy Market Watcher images
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'infra/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-watcher-image-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      image_version: ${{ steps.version.outputs.image_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Calculate image version
+        id: version
+        shell: bash
+        run: |
+          latest_tag="$(git tag --list 'v1.0.*' --sort=-version:refname | head -n 1)"
+          if [[ -z "$latest_tag" ]]; then
+            image_version="1.0.0"
+          else
+            patch="${latest_tag##*.}"
+            if ! [[ "$patch" =~ ^[0-9]+$ ]]; then
+              echo "Invalid release tag: $latest_tag" >&2
+              exit 1
+            fi
+            image_version="1.0.$((patch + 1))"
+          fi
+          echo "image_version=$image_version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            context: services/quotes-api
+          - component: frontend
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker.redby.fr
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build and push ${{ matrix.component }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            docker.redby.fr/market-watcher/${{ matrix.component }}:${{ needs.version.outputs.image_version }}
+            docker.redby.fr/market-watcher/${{ matrix.component }}:latest
+
+  update-deployments:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update Kubernetes image versions
+        env:
+          IMAGE_VERSION: ${{ needs.version.outputs.image_version }}
+        run: |
+          sed -i -E "s#(image: docker.redby.fr/market-watcher/api:).*#\1${IMAGE_VERSION}#" infra/services/api/deployment.yaml
+          sed -i -E "s#(image: docker.redby.fr/market-watcher/frontend:).*#\1${IMAGE_VERSION}#" infra/services/frontend/deployment.yaml
+      - name: Commit manifests and release tag
+        env:
+          IMAGE_VERSION: ${{ needs.version.outputs.image_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add infra/services/api/deployment.yaml infra/services/frontend/deployment.yaml
+          git commit -m "Deploy image release ${IMAGE_VERSION}"
+          git tag -a "v${IMAGE_VERSION}" "${GITHUB_SHA}" -m "Market Watcher image release ${IMAGE_VERSION}"
+          git push --atomic origin HEAD:main "refs/tags/v${IMAGE_VERSION}"
