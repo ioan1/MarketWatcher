@@ -11,7 +11,7 @@ class MarketDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_symbol("UBI.PA/../../etc")
 
-    def test_builds_target_distance(self):
+    def test_builds_negative_target_distance_when_price_is_below_target(self):
         quote = build_quote(
             "UBI.PA",
             25.0,
@@ -22,8 +22,18 @@ class MarketDataTests(unittest.TestCase):
 
         self.assertEqual(quote["currency"], "EUR")
         self.assertEqual(quote["marketTimezone"], "Europe/Paris")
+        self.assertEqual(quote["targetDistance"], -5.0)
+        self.assertEqual(quote["targetDistancePercent"], -25.0)
+
+    def test_builds_positive_target_distance_when_price_is_above_target(self):
+        quote = build_quote(
+            "UBI.PA",
+            25.0,
+            [{"time": "2026-10-07T10:00:00+00:00", "price": 30.0}],
+        )
+
         self.assertEqual(quote["targetDistance"], 5.0)
-        self.assertEqual(quote["targetDistancePercent"], 25.0)
+        self.assertAlmostEqual(quote["targetDistancePercent"], 100 / 6)
 
 
 if __name__ == "__main__":

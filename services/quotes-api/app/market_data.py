@@ -25,7 +25,7 @@ def build_quote(
     market_timezone: str | None = None,
 ) -> dict:
     current_price = float(history[-1]["price"])
-    distance = target - current_price
+    distance = current_price - target
     return {
         "symbol": symbol,
         "currency": currency or ("EUR" if symbol.endswith(".PA") else "USD"),

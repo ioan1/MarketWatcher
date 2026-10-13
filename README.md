@@ -30,7 +30,9 @@ Vite relaie `/api` vers `http://localhost:8000`. L'interface est disponible sur
 ## API
 
 `GET /api/quotes/{symbol}?target={prix}` renvoie le cours récent, la devise, les
-points Yahoo Finance de la journée et l'écart entre le cours et l'objectif.
+points Yahoo Finance de la journée et l'écart signé entre le cours et l'objectif
+(cours actuel moins objectif : positif si le cours dépasse l'objectif, négatif
+s'il est inférieur). Le cours actuel est affiché avec trois décimales.
 Exemple : `/api/quotes/UBI.PA?target=25`. La réponse est mise en cache en mémoire
 pendant 30 secondes ; le frontend actualise l'affichage toutes les 30 secondes.
 L'objectif est exprimé dans la devise renvoyée pour le titre.

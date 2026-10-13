@@ -20,20 +20,20 @@ import {
 } from 'recharts';
 import { fetchQuote } from './api.js';
 
-function currency(value, code = 'EUR') {
+function currency(value, code = 'EUR', fractionDigits = 2) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: code,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(value);
 }
 
-function signedEuros(value) {
+function signedCurrency(value, code = 'EUR') {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency: 'EUR',
-    signDisplay: 'always',
+    currency: code,
+    signDisplay: 'exceptZero',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
@@ -112,7 +112,7 @@ function QuoteTooltip({ active, payload, label, code, timeZone }) {
   return (
     <div className="chart-tooltip">
       <span>{formatTime(label, timeZone)}</span>
-      <strong>{currency(payload[0].value, code)}</strong>
+      <strong>{currency(payload[0].value, code, 3)}</strong>
     </div>
   );
 }
@@ -127,7 +127,7 @@ export default function App() {
 
   useEffect(() => {
     document.title = tracked && quote
-      ? `${tracked.symbol} ${signedEuros(quote.targetDistance)} | Market Watcher`
+      ? `${tracked.symbol} ${signedCurrency(quote.targetDistance, quote.currency)} | Market Watcher`
       : 'Market Watcher';
   }, [tracked, quote]);
 
@@ -180,7 +180,7 @@ export default function App() {
     : { data: [], start: null, end: null };
   const chartData = chartSession.data;
   const distance = quote?.targetDistance ?? 0;
-  const isAboveTarget = distance <= 0;
+  const isAboveTarget = distance > 0;
 
   return (
     <main className="app-shell">
@@ -247,7 +247,7 @@ export default function App() {
                 <div className="quote-metrics">
                   <div className="metric current-metric">
                     <span className="metric-label">COURS ACTUEL</span>
-                    <strong>{currency(quote.currentPrice, quote.currency)}</strong>
+                    <strong>{currency(quote.currentPrice, quote.currency, 3)}</strong>
                   </div>
                   <div className="metric target-metric">
                     <span className="metric-label">OBJECTIF</span>
@@ -257,10 +257,13 @@ export default function App() {
                     <span className="metric-label">{isAboveTarget ? 'OBJECTIF DÉPASSÉ' : 'ÉCART À L’OBJECTIF'}</span>
                     <strong>
                       {isAboveTarget ? <ArrowDownRight size={19} /> : <ArrowUpRight size={19} />}
-                      {currency(Math.abs(distance), quote.currency)}
+                      {signedCurrency(distance, quote.currency)}
                     </strong>
                     <span className="metric-subvalue">
-                      {Math.abs(quote.targetDistancePercent).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%
+                      {quote.targetDistancePercent.toLocaleString('fr-FR', {
+                        signDisplay: 'exceptZero',
+                        maximumFractionDigits: 2,
+                      })}%
                       {isAboveTarget ? ' au-dessus' : ' à parcourir'}
                     </span>
                   </div>
@@ -297,7 +300,10 @@ export default function App() {
                         <YAxis
                           axisLine={false}
                           domain={['auto', 'auto']}
-                          tickFormatter={(value) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value)}
+                          tickFormatter={(value) => new Intl.NumberFormat('fr-FR', {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3,
+                          }).format(value)}
                           tickLine={false}
                           tick={{ fill: '#9ba99f', fontSize: 11 }}
                           width={68}
