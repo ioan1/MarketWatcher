@@ -121,6 +121,7 @@ export default function App() {
   const [provider, setProvider] = useState('yahoo');
   const [symbol, setSymbol] = useState('UBI.PA');
   const [bearerToken, setBearerToken] = useState('');
+  const [xAuthorizationToken, setXAuthorizationToken] = useState('');
   const [targetInput, setTargetInput] = useState('');
   const [tracked, setTracked] = useState(null);
   const [quote, setQuote] = useState(null);
@@ -151,10 +152,14 @@ export default function App() {
           tracked.target,
           tracked.provider,
           tracked.bearerToken,
+          tracked.xAuthorizationToken,
         );
         if (active) setQuote(result);
       } catch (requestError) {
-        if (active) setError(requestError.message);
+        if (active) {
+          console.error('Erreur lors du chargement de la cotation :', requestError);
+          setError(requestError.message);
+        }
       } finally {
         requestInFlight = false;
         if (active && isInitial) setLoading(false);
@@ -183,6 +188,7 @@ export default function App() {
       target,
       provider,
       bearerToken: provider === 'credit-agricole' ? bearerToken.trim() : '',
+      xAuthorizationToken: provider === 'credit-agricole' ? xAuthorizationToken.trim() : '',
     });
   }
 
@@ -241,6 +247,21 @@ export default function App() {
               </span>
             </label>
           )}
+          {provider === 'credit-agricole' && (
+            <label className="field-group token-field">
+              <span className="field-label">TOKEN X-AUTHORIZATION · NON PERSISTÉ</span>
+              <span className="input-wrap">
+                <input
+                  aria-label="Token X-Authorization Crédit Agricole"
+                  autoComplete="new-password"
+                  onChange={(event) => setXAuthorizationToken(event.target.value)}
+                  placeholder="Saisir le token pour cette session"
+                  type="password"
+                  value={xAuthorizationToken}
+                />
+              </span>
+            </label>
+          )}
           <label className="field-group target-field">
             <span className="field-label">COURS CIBLE · DEVISE DU TITRE</span>
             <span className="input-wrap target-input-wrap">
@@ -263,7 +284,8 @@ export default function App() {
               loading
               || !symbol.trim()
               || !targetInput
-              || (provider === 'credit-agricole' && !bearerToken.trim())
+              || (provider === 'credit-agricole'
+                && (!bearerToken.trim() || !xAuthorizationToken.trim()))
             }
             type="submit"
           >

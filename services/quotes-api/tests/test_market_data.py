@@ -68,6 +68,7 @@ class MarketDataTests(unittest.TestCase):
         history, currency, market_timezone, name = fetch_credit_agricole_market_data(
             "NL00150001Q9",
             "test-token",
+            "test-x-authorization-token",
         )
 
         request = mock_urlopen.call_args.args[0]
@@ -75,6 +76,32 @@ class MarketDataTests(unittest.TestCase):
             request.full_url,
             "https://api.ca-titres.fr/bel/v1/products/NL00150001Q9/025",
         )
+        self.assertEqual(request.get_header("X-authorization"), "Bearer test-x-authorization-token")
+        self.assertEqual(request.get_header("Accept"), "application/json, text/plain, */*")
+        self.assertEqual(
+            request.get_header("Accept-language"),
+            "fr-CH,fr-FR;q=0.9,fr;q=0.8,en-US;q=0.7,en;q=0.6",
+        )
+        self.assertEqual(request.get_header("Client-application"), "")
+        self.assertEqual(request.get_header("Client-version"), "web-2026.4.6")
+        self.assertEqual(request.get_header("Connection"), "keep-alive")
+        self.assertEqual(request.get_header("Origin"), "https://www.ca-bourse.credit-agricole.fr")
+        self.assertEqual(request.get_header("Referer"), "https://www.ca-bourse.credit-agricole.fr/")
+        self.assertEqual(request.get_header("Sec-fetch-dest"), "empty")
+        self.assertEqual(request.get_header("Sec-fetch-mode"), "cors")
+        self.assertEqual(request.get_header("Sec-fetch-site"), "cross-site")
+        self.assertEqual(
+            request.get_header("User-agent"),
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/150.0.0.0 Safari/537.36",
+        )
+        self.assertEqual(
+            request.get_header("Sec-ch-ua"),
+            '"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"',
+        )
+        self.assertEqual(request.get_header("Sec-ch-ua-mobile"), "?0")
+        self.assertEqual(request.get_header("Sec-ch-ua-platform"), '"macOS"')
         self.assertEqual(request.get_header("Authorization"), "Bearer test-token")
         self.assertEqual(history[0]["price"], 3.9845)
         self.assertEqual(history[0]["time"], "2026-10-16T15:35:00+00:00")
@@ -95,7 +122,11 @@ class MarketDataTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(RuntimeError, "Réponse de cotation invalide"):
-            fetch_credit_agricole_market_data("NL00150001Q9", "test-token")
+            fetch_credit_agricole_market_data(
+                "NL00150001Q9",
+                "test-token",
+                "test-x-authorization-token",
+            )
 
     @patch("app.main.fetch_credit_agricole_market_data")
     def test_credit_agricole_endpoint_requires_bearer_token(self, fetch_market_data):
@@ -105,6 +136,20 @@ class MarketDataTests(unittest.TestCase):
                 target=4.0,
                 provider="credit-agricole",
                 authorization=None,
+            )
+
+        self.assertEqual(context.exception.status_code, 401)
+        fetch_market_data.assert_not_called()
+
+    @patch("app.main.fetch_credit_agricole_market_data")
+    def test_credit_agricole_endpoint_requires_x_authorization_token(self, fetch_market_data):
+        with self.assertRaises(HTTPException) as context:
+            quote(
+                "NL00150001Q9",
+                target=4.0,
+                provider="credit-agricole",
+                authorization="Bearer test-token",
+                x_authorization=None,
             )
 
         self.assertEqual(context.exception.status_code, 401)
@@ -125,9 +170,14 @@ class MarketDataTests(unittest.TestCase):
             target=4.0,
             provider="credit-agricole",
             authorization="Bearer test-token",
+            x_authorization="Bearer test-x-authorization-token",
         )
 
-        fetch_market_data.assert_called_once_with("NL00150001Q9", "test-token")
+        fetch_market_data.assert_called_once_with(
+            "NL00150001Q9",
+            "test-token",
+            "test-x-authorization-token",
+        )
         self.assertEqual(result["currentPrice"], 3.9845)
         self.assertEqual(result["currency"], "EUR")
         self.assertEqual(result["displayName"], "STELLANTIS")

@@ -1,7 +1,16 @@
-export async function fetchQuote(symbol, target, provider = 'yahoo', bearerToken = '') {
+export async function fetchQuote(
+  symbol,
+  target,
+  provider = 'yahoo',
+  bearerToken = '',
+  xAuthorizationToken = '',
+) {
   const params = new URLSearchParams({ target: String(target), provider });
   const headers = provider === 'credit-agricole'
-    ? { Authorization: `Bearer ${bearerToken}` }
+    ? {
+      Authorization: `Bearer ${bearerToken}`,
+      'X-Authorization': `Bearer ${xAuthorizationToken}`,
+    }
     : undefined;
   const response = await fetch(`/api/quotes/${encodeURIComponent(symbol)}?${params}`, { headers });
   const result = await response.json();

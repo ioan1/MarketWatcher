@@ -58,9 +58,32 @@ def build_quote(
 def fetch_credit_agricole_market_data(
     isin: str,
     bearer_token: str,
+    x_authorization_token: str,
 ) -> tuple[list[dict[str, float | str]], str, str, str]:
     url = f"https://api.ca-titres.fr/bel/v1/products/{isin}/025"
     request = Request(url, headers={"Authorization": f"Bearer {bearer_token}"})
+    for header, value in {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "fr-CH,fr-FR;q=0.9,fr;q=0.8,en-US;q=0.7,en;q=0.6",
+        "Client-Application": "",
+        "Client-Version": "web-2026.4.6",
+        "Connection": "keep-alive",
+        "Origin": "https://www.ca-bourse.credit-agricole.fr",
+        "Referer": "https://www.ca-bourse.credit-agricole.fr/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/150.0.0.0 Safari/537.36"
+        ),
+        "X-Authorization": f"Bearer {x_authorization_token}",
+        "sec-ch-ua": '"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"macOS"',
+    }.items():
+        request.add_header(header, value)
 
     try:
         with urlopen(request, timeout=10) as response:

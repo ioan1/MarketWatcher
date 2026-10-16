@@ -24,6 +24,7 @@ def quote(
     target: float = Query(gt=0, allow_inf_nan=False),
     provider: Literal["yahoo", "credit-agricole"] = "yahoo",
     authorization: str | None = Header(default=None),
+    x_authorization: str | None = Header(default=None, alias="X-Authorization"),
 ) -> dict:
     try:
         if provider == "credit-agricole":
@@ -34,9 +35,19 @@ def quote(
                     status_code=401,
                     detail="Un token Bearer Crédit Agricole est requis",
                 )
+            x_scheme, _, x_authorization_token = (x_authorization or "").partition(" ")
+            if x_scheme.lower() != "bearer" or not x_authorization_token.strip():
+                raise HTTPException(
+                    status_code=401,
+                    detail="Un token X-Authorization Crédit Agricole est requis",
+                )
             normalized_symbol = isin
             history, currency, market_timezone, display_name = (
-                fetch_credit_agricole_market_data(isin, bearer_token.strip())
+                fetch_credit_agricole_market_data(
+                    isin,
+                    bearer_token.strip(),
+                    x_authorization_token.strip(),
+                )
             )
         else:
             normalized_symbol = validate_symbol(symbol)

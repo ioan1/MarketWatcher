@@ -39,10 +39,12 @@ titre. Le frontend actualise l'affichage toutes les 30 secondes.
   points intrajournaliers. Les réponses sont mises en cache en mémoire pendant
   30 secondes.
 - Crédit Agricole : préciser `provider=credit-agricole`, utiliser un ISIN dans
-  `{symbol}` et envoyer le token fourni dans l'interface avec l'en-tête
+  `{symbol}` et saisir dans l'interface les tokens `Authorization` et
+  `X-Authorization` fournis par Crédit Agricole. L'API ajoute également les
+  en-têtes applicatifs et navigateur nécessaires à la requête sur
   `Authorization: Bearer <token>`. L'API appelle
-  `https://api.ca-titres.fr/bel/v1/products/{isin}/025`. Le token n'est jamais
-  ajouté à l'URL ni persisté ; il reste uniquement en mémoire dans l'interface
+  `https://api.ca-titres.fr/bel/v1/products/{isin}/025`. Les tokens ne sont
+  jamais ajoutés à l'URL ni persistés ; ils restent uniquement en mémoire dans l'interface
   pour permettre l'actualisation automatique. Ce fournisseur ne
   fournit qu'un cours courant, sans historique intrajournalier. Le code place
   est `025` (Euronext Paris).
