@@ -45,6 +45,7 @@ button { cursor: pointer; }
 .watch-form {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: 14px;
   padding: 17px 18px;
   background: #1b241e;
@@ -54,12 +55,16 @@ button { cursor: pointer; }
 }
 
 .field-group { display: flex; flex-direction: column; gap: 7px; }
+.provider-field { width: 180px; }
 .ticker-field { width: 215px; }
 .target-field { width: 190px; }
+.token-field { flex: 1; min-width: 220px; }
 .field-label { color: #a1aea6; }
 .input-wrap { height: 42px; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid #3a4940; border-radius: 5px; color: #a1aea6; transition: border-color 150ms ease, box-shadow 150ms ease; }
 .input-wrap:focus-within { border-color: #59c99c; box-shadow: 0 0 0 3px rgba(89, 201, 156, 0.14); }
-.input-wrap input { border: 0; outline: 0; width: 100%; min-width: 0; color: var(--ink); background: transparent; font-size: 14px; font-weight: 600; }
+.input-wrap input, .input-wrap select { border: 0; outline: 0; width: 100%; min-width: 0; color: var(--ink); background: transparent; font-size: 14px; font-weight: 600; }
+.input-wrap select { height: 100%; cursor: pointer; }
+.input-wrap select option { color: var(--ink); background: #1b241e; }
 .input-wrap input::placeholder { color: #718077; font-weight: 400; }
 .input-currency { color: #9ba99f; font-family: 'DM Mono', monospace; font-size: 11px; }
 .submit-button { height: 42px; margin-left: auto; padding: 0 16px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; border: 0; border-radius: 5px; background: #83d9aa; color: #142219; font-size: 13px; font-weight: 700; transition: background 150ms ease, transform 150ms ease; }
@@ -125,7 +130,8 @@ button { cursor: pointer; }
 @media (max-width: 600px) {
   .workspace { width: calc(100% - 28px); padding-top: 28px; }
   .watch-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; }
-  .ticker-field, .target-field { width: auto; min-width: 0; }
+  .provider-field, .ticker-field, .target-field { width: auto; min-width: 0; }
+  .token-field { grid-column: 1 / -1; min-width: 0; }
   .submit-button { grid-column: 1 / -1; width: 100%; margin-top: 1px; }
   .quote-overview { padding: 18px 16px; gap: 20px; }
   .quote-metrics { align-items: flex-start; gap: 9px; }

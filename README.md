@@ -1,8 +1,8 @@
 # Market Watcher
 
-Suivi de cotations Yahoo Finance avec un graphique des 24 dernières heures et
-l'écart au cours cible. L'application est composée d'un frontend React et d'une
-API FastAPI déployables séparément sur Kubernetes.
+Suivi de cotations Yahoo Finance ou Crédit Agricole et de l'écart au cours
+cible. L'application est composée d'un frontend React et d'une API FastAPI
+déployables séparément sur Kubernetes.
 
 ## Développement local
 
@@ -29,17 +29,27 @@ Vite relaie `/api` vers `http://localhost:8000`. L'interface est disponible sur
 
 ## API
 
-`GET /api/quotes/{symbol}?target={prix}` renvoie le cours récent, la devise, les
-points Yahoo Finance de la journée et l'écart signé entre le cours et l'objectif
-(cours actuel moins objectif : positif si le cours dépasse l'objectif, négatif
-s'il est inférieur). Le cours actuel est affiché avec trois décimales.
-Exemple : `/api/quotes/UBI.PA?target=25`. La réponse est mise en cache en mémoire
-pendant 30 secondes ; le frontend actualise l'affichage toutes les 30 secondes.
-L'objectif est exprimé dans la devise renvoyée pour le titre.
+`GET /api/quotes/{symbol}?target={prix}` renvoie le cours récent, sa devise et
+l'écart signé au cours cible (cours actuel moins objectif : positif si le cours
+dépasse l'objectif, négatif s'il est inférieur). Le cours actuel est affiché
+avec trois décimales. L'objectif est exprimé dans la devise renvoyée pour le
+titre. Le frontend actualise l'affichage toutes les 30 secondes.
 
-Les données sont fournies par Yahoo Finance, sans garantie de disponibilité ni
-de délai de cotation. L'API ne fabrique pas de points pendant les périodes sans
-cotation.
+- Yahoo Finance (par défaut) : `GET /api/quotes/UBI.PA?target=25` renvoie les
+  points intrajournaliers. Les réponses sont mises en cache en mémoire pendant
+  30 secondes.
+- Crédit Agricole : préciser `provider=credit-agricole`, utiliser un ISIN dans
+  `{symbol}` et envoyer le token fourni dans l'interface avec l'en-tête
+  `Authorization: Bearer <token>`. L'API appelle
+  `https://api.ca-titres.fr/bel/v1/products/{isin}/025`. Le token n'est jamais
+  ajouté à l'URL ni persisté ; il reste uniquement en mémoire dans l'interface
+  pour permettre l'actualisation automatique. Ce fournisseur ne
+  fournit qu'un cours courant, sans historique intrajournalier. Le code place
+  est `025` (Euronext Paris).
+
+Les données sont fournies par les services externes correspondants, sans
+garantie de disponibilité ni de délai de cotation. L'API ne fabrique pas de
+points pendant les périodes sans cotation.
 
 ## Déploiement
 

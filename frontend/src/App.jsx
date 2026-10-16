@@ -118,7 +118,9 @@ function QuoteTooltip({ active, payload, label, code, timeZone }) {
 }
 
 export default function App() {
+  const [provider, setProvider] = useState('yahoo');
   const [symbol, setSymbol] = useState('UBI.PA');
+  const [bearerToken, setBearerToken] = useState('');
   const [targetInput, setTargetInput] = useState('');
   const [tracked, setTracked] = useState(null);
   const [quote, setQuote] = useState(null);
@@ -144,7 +146,12 @@ export default function App() {
       setError('');
 
       try {
-        const result = await fetchQuote(tracked.symbol, tracked.target);
+        const result = await fetchQuote(
+          tracked.symbol,
+          tracked.target,
+          tracked.provider,
+          tracked.bearerToken,
+        );
         if (active) setQuote(result);
       } catch (requestError) {
         if (active) setError(requestError.message);
@@ -171,7 +178,12 @@ export default function App() {
 
     setQuote(null);
     setError('');
-    setTracked({ symbol: normalizedSymbol, target });
+    setTracked({
+      symbol: normalizedSymbol,
+      target,
+      provider,
+      bearerToken: provider === 'credit-agricole' ? bearerToken.trim() : '',
+    });
   }
 
   const marketTimezone = quote?.marketTimezone;
@@ -186,21 +198,49 @@ export default function App() {
     <main className="app-shell">
       <section className="workspace">
         <form className="watch-form" onSubmit={startTracking}>
+          <label className="field-group provider-field">
+            <span className="field-label">FOURNISSEUR</span>
+            <span className="input-wrap">
+              <select
+                aria-label="Fournisseur de données"
+                onChange={(event) => setProvider(event.target.value)}
+                value={provider}
+              >
+                <option value="yahoo">Yahoo Finance</option>
+                <option value="credit-agricole">Crédit Agricole</option>
+              </select>
+            </span>
+          </label>
           <label className="field-group ticker-field">
-            <span className="field-label">SYMBOLE</span>
+            <span className="field-label">{provider === 'credit-agricole' ? 'ISIN' : 'SYMBOLE'}</span>
             <span className="input-wrap">
               <Search size={17} aria-hidden="true" />
               <input
-                aria-label="Symbole boursier"
+                aria-label={provider === 'credit-agricole' ? 'Code ISIN' : 'Symbole boursier'}
                 autoCapitalize="characters"
                 autoComplete="off"
                 onChange={(event) => setSymbol(event.target.value)}
-                placeholder="Ex. UBI.PA"
+                placeholder={provider === 'credit-agricole' ? 'Ex. NL00150001Q9' : 'Ex. UBI.PA'}
                 spellCheck="false"
                 value={symbol}
               />
             </span>
           </label>
+          {provider === 'credit-agricole' && (
+            <label className="field-group token-field">
+              <span className="field-label">TOKEN BEARER · NON PERSISTÉ</span>
+              <span className="input-wrap">
+                <input
+                  aria-label="Token Bearer Crédit Agricole"
+                  autoComplete="new-password"
+                  onChange={(event) => setBearerToken(event.target.value)}
+                  placeholder="Saisir le token pour cette session"
+                  type="password"
+                  value={bearerToken}
+                />
+              </span>
+            </label>
+          )}
           <label className="field-group target-field">
             <span className="field-label">COURS CIBLE · DEVISE DU TITRE</span>
             <span className="input-wrap target-input-wrap">
@@ -217,7 +257,16 @@ export default function App() {
               />
             </span>
           </label>
-          <button className="submit-button" disabled={loading || !symbol.trim() || !targetInput} type="submit">
+          <button
+            className="submit-button"
+            disabled={
+              loading
+              || !symbol.trim()
+              || !targetInput
+              || (provider === 'credit-agricole' && !bearerToken.trim())
+            }
+            type="submit"
+          >
             {loading ? <LoaderCircle className="spin" size={17} /> : <Activity size={17} />}
             <span>{loading ? 'Chargement' : 'Suivre le cours'}</span>
           </button>
@@ -238,10 +287,13 @@ export default function App() {
                   <div className="instrument-icon"><Activity size={21} /></div>
                   <div>
                     <div className="ticker-line">
-                      <h2>{quote.symbol}</h2>
+                      <h2>{quote.displayName || quote.symbol}</h2>
                       <span className="market-badge"><span className="live-dot" /> SUIVI ACTIF</span>
                     </div>
-                    <p>Dernière cotation <span className="separator">·</span> {quote.currency}</p>
+                    <p>
+                      {quote.displayName && <>{quote.symbol} <span className="separator">·</span> </>}
+                      Dernière cotation <span className="separator">·</span> {quote.currency}
+                    </p>
                   </div>
                 </div>
                 <div className="quote-metrics">
@@ -273,16 +325,26 @@ export default function App() {
               <div className="chart-section">
                 <div className="chart-heading">
                   <div>
-                    <h3>Évolution du cours</h3>
-                    <p>Séance de marché · 09:00–18:00</p>
+                    <h3>{quote.provider === 'credit-agricole' ? 'Dernière cotation' : 'Évolution du cours'}</h3>
+                    <p>
+                      {quote.provider === 'credit-agricole'
+                        ? 'Cours fourni par l’API Crédit Agricole'
+                        : 'Séance de marché · 09:00–18:00'}
+                    </p>
                   </div>
-                  <div className="chart-legend">
-                    <span><i className="legend-line price-line" /> Cours</span>
-                    <span><i className="legend-line target-line" /> Objectif</span>
-                  </div>
+                  {quote.provider !== 'credit-agricole' && (
+                    <div className="chart-legend">
+                      <span><i className="legend-line price-line" /> Cours</span>
+                      <span><i className="legend-line target-line" /> Objectif</span>
+                    </div>
+                  )}
                 </div>
                 <div className="chart-frame">
-                  {chartData?.length ? (
+                  {quote.provider === 'credit-agricole' ? (
+                    <div className="chart-empty">
+                      L’API Crédit Agricole fournit le cours courant, sans historique intrajournalier.
+                    </div>
+                  ) : chartData?.length ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 14, right: 12, bottom: 2, left: 4 }}>
                         <CartesianGrid vertical={false} stroke="#303d35" strokeDasharray="3 5" />
@@ -327,7 +389,11 @@ export default function App() {
                 </div>
                 <div className="chart-footnote">
                   <span><Clock3 size={14} /> Actualisé {formatTime(Date.parse(quote.fetchedAt))}</span>
-                  <span>{chartData.length} points de cotation</span>
+                  <span>
+                    {quote.provider === 'credit-agricole'
+                      ? 'Historique non fourni'
+                      : `${chartData.length} points de cotation`}
+                  </span>
                 </div>
               </div>
             </>

@@ -1,9 +1,14 @@
+import json
+import math
 import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9^=._-]{1,32}$")
+ISIN_PATTERN = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 CACHE_TTL_SECONDS = 30
 
 _cache: dict[str, tuple[float, list[dict[str, float | str]], str, str | None]] = {}
@@ -17,12 +22,21 @@ def validate_symbol(symbol: str) -> str:
     return normalized
 
 
+def validate_isin(isin: str) -> str:
+    normalized = isin.strip().upper()
+    if not ISIN_PATTERN.fullmatch(normalized):
+        raise ValueError("Code ISIN invalide")
+    return normalized
+
+
 def build_quote(
     symbol: str,
     target: float,
     history: list[dict[str, float | str]],
     currency: str | None = None,
     market_timezone: str | None = None,
+    provider: str = "yahoo",
+    display_name: str | None = None,
 ) -> dict:
     current_price = float(history[-1]["price"])
     distance = current_price - target
@@ -36,7 +50,57 @@ def build_quote(
         "targetDistancePercent": distance / current_price * 100,
         "history": history,
         "fetchedAt": datetime.now(timezone.utc).isoformat(),
+        "provider": provider,
+        "displayName": display_name,
     }
+
+
+def fetch_credit_agricole_market_data(
+    isin: str,
+    bearer_token: str,
+) -> tuple[list[dict[str, float | str]], str, str, str]:
+    url = f"https://api.ca-titres.fr/bel/v1/products/{isin}/025"
+    request = Request(url, headers={"Authorization": f"Bearer {bearer_token}"})
+
+    try:
+        with urlopen(request, timeout=10) as response:
+            product = json.loads(response.read())
+    except HTTPError as error:
+        raise RuntimeError(
+            f"L'API Crédit Agricole a répondu avec le statut HTTP {error.code}"
+        ) from error
+    except (URLError, TimeoutError, OSError) as error:
+        raise RuntimeError("L'API Crédit Agricole est momentanément indisponible") from error
+    except json.JSONDecodeError as error:
+        raise RuntimeError("Réponse JSON invalide de l'API Crédit Agricole") from error
+
+    try:
+        current_price = product["current_price"]
+        price = current_price["value"]
+        currency = current_price["currency"]
+        quote_date = datetime.fromisoformat(product["quote_date"].replace("Z", "+00:00"))
+        name = product["name"]
+        if (
+            isinstance(price, bool)
+            or not isinstance(price, (int, float))
+            or not math.isfinite(price)
+            or price <= 0
+            or not isinstance(currency, str)
+            or not re.fullmatch(r"[A-Z]{3}", currency)
+            or quote_date.tzinfo is None
+            or not isinstance(name, str)
+            or not name.strip()
+        ):
+            raise ValueError
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
+        raise RuntimeError("Réponse de cotation invalide de l'API Crédit Agricole") from error
+
+    return (
+        [{"time": quote_date.astimezone(timezone.utc).isoformat(), "price": float(price)}],
+        currency,
+        "Europe/Paris",
+        name.strip(),
+    )
 
 
 def fetch_market_data(symbol: str) -> tuple[list[dict[str, float | str]], str, str | None]:
