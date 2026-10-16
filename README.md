@@ -45,13 +45,15 @@ titre. Le frontend actualise l'affichage toutes les 30 secondes.
   `Authorization: Bearer <token>`. L'API appelle
   `https://api.ca-titres.fr/bel/v1/products/{isin}/025`. Les tokens ne sont
   jamais ajoutés à l'URL ni persistés ; ils restent uniquement en mémoire dans l'interface
-  pour permettre l'actualisation automatique. Ce fournisseur ne
-  fournit qu'un cours courant, sans historique intrajournalier. Le code place
-  est `025` (Euronext Paris).
+  pour permettre l'actualisation automatique. Ce fournisseur ne fournit qu'un
+  cours courant ; le navigateur enregistre donc chaque valeur récupérée et
+  reconstitue l'historique localement. Il est propre au navigateur utilisé et
+  commence à la première cotation suivie ; il n'est pas synchronisé avec
+  d'autres appareils. Le code place est `025` (Euronext Paris).
 
 Les données sont fournies par les services externes correspondants, sans
-garantie de disponibilité ni de délai de cotation. L'API ne fabrique pas de
-points pendant les périodes sans cotation.
+garantie de disponibilité ni de délai de cotation. L'application ne fabrique
+pas de points pendant les périodes sans récupération réussie d'une cotation.
 
 ## Déploiement
 

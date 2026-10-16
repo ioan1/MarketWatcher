@@ -19,6 +19,7 @@ import {
   YAxis,
 } from 'recharts';
 import { fetchQuote } from './api.js';
+import { recordCreditAgricoleSnapshot } from './history.js';
 
 function currency(value, code = 'EUR', fractionDigits = 2) {
   return new Intl.NumberFormat('fr-FR', {
@@ -106,12 +107,22 @@ function buildMarketSession(history, timeZone) {
   };
 }
 
-function QuoteTooltip({ active, payload, label, code, timeZone }) {
+function QuoteTooltip({ active, payload, label, code, timeZone, includeDate = false }) {
   if (!active || !payload?.length) return null;
 
   return (
     <div className="chart-tooltip">
-      <span>{formatTime(label, timeZone)}</span>
+      <span>
+        {includeDate
+          ? new Intl.DateTimeFormat('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone,
+          }).format(label)
+          : formatTime(label, timeZone)}
+      </span>
       <strong>{currency(payload[0].value, code, 3)}</strong>
     </div>
   );
@@ -154,6 +165,21 @@ export default function App() {
           tracked.bearerToken,
           tracked.xAuthorizationToken,
         );
+        if (!active) return;
+        if (tracked.provider === 'credit-agricole') {
+          try {
+            result.history = recordCreditAgricoleSnapshot(tracked.symbol, result);
+          } catch (storageError) {
+            console.error('Erreur lors de l’enregistrement de l’historique :', storageError);
+            if (active) {
+              setQuote(result);
+              setError(
+                'La cotation a été récupérée, mais son historique n’a pas pu être enregistré dans ce navigateur.',
+              );
+            }
+            return;
+          }
+        }
         if (active) setQuote(result);
       } catch (requestError) {
         if (active) {
@@ -196,7 +222,11 @@ export default function App() {
   const chartSession = quote
     ? buildMarketSession(quote.history, marketTimezone)
     : { data: [], start: null, end: null };
-  const chartData = chartSession.data;
+  const chartData = quote?.provider === 'credit-agricole'
+    ? quote.history
+      .map((point) => ({ time: Date.parse(point.time), price: point.price }))
+      .filter((point) => Number.isFinite(point.time))
+    : chartSession.data;
   const distance = quote?.targetDistance ?? 0;
   const isAboveTarget = distance > 0;
 
@@ -347,39 +377,49 @@ export default function App() {
               <div className="chart-section">
                 <div className="chart-heading">
                   <div>
-                    <h3>{quote.provider === 'credit-agricole' ? 'Dernière cotation' : 'Évolution du cours'}</h3>
+                    <h3>Évolution du cours</h3>
                     <p>
                       {quote.provider === 'credit-agricole'
-                        ? 'Cours fourni par l’API Crédit Agricole'
+                        ? 'Observations enregistrées dans ce navigateur'
                         : 'Séance de marché · 09:00–18:00'}
                     </p>
                   </div>
-                  {quote.provider !== 'credit-agricole' && (
-                    <div className="chart-legend">
-                      <span><i className="legend-line price-line" /> Cours</span>
-                      <span><i className="legend-line target-line" /> Objectif</span>
-                    </div>
-                  )}
+                  <div className="chart-legend">
+                    <span><i className="legend-line price-line" /> Cours</span>
+                    <span><i className="legend-line target-line" /> Objectif</span>
+                  </div>
                 </div>
                 <div className="chart-frame">
-                  {quote.provider === 'credit-agricole' ? (
-                    <div className="chart-empty">
-                      L’API Crédit Agricole fournit le cours courant, sans historique intrajournalier.
-                    </div>
-                  ) : chartData?.length ? (
+                  {chartData?.length ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 14, right: 12, bottom: 2, left: 4 }}>
                         <CartesianGrid vertical={false} stroke="#303d35" strokeDasharray="3 5" />
                         <XAxis
                           axisLine={false}
                           dataKey="time"
-                          domain={[chartSession.start, chartSession.end]}
-                          tickFormatter={(value) => formatTime(value, marketTimezone)}
+                          domain={quote.provider === 'credit-agricole'
+                            ? ['dataMin', 'dataMax']
+                            : [chartSession.start, chartSession.end]}
+                          tickFormatter={(value) => (quote.provider === 'credit-agricole'
+                            ? new Intl.DateTimeFormat('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              timeZone: marketTimezone,
+                            }).format(value)
+                            : formatTime(value, marketTimezone))}
                           tickLine={false}
                           tickMargin={12}
                           tick={{ fill: '#9ba99f', fontSize: 11 }}
                           type="number"
-                          ticks={Array.from({ length: 7 }, (_, index) => chartSession.start + index * (chartSession.end - chartSession.start) / 6)}
+                          ticks={quote.provider === 'credit-agricole'
+                            ? undefined
+                            : Array.from(
+                              { length: 7 },
+                              (_, index) => chartSession.start
+                                + index * (chartSession.end - chartSession.start) / 6,
+                            )}
                         />
                         <YAxis
                           axisLine={false}
@@ -392,12 +432,25 @@ export default function App() {
                           tick={{ fill: '#9ba99f', fontSize: 11 }}
                           width={68}
                         />
-                        <Tooltip content={<QuoteTooltip code={quote.currency} timeZone={marketTimezone} />} />
-                        <ReferenceLine y={quote.target} stroke="#da765f" strokeDasharray="5 5" strokeWidth={1.5} />
+                        <Tooltip
+                          content={(
+                            <QuoteTooltip
+                              code={quote.currency}
+                              includeDate={quote.provider === 'credit-agricole'}
+                              timeZone={marketTimezone}
+                            />
+                          )}
+                        />
+                        <ReferenceLine
+                          y={quote.target}
+                          stroke="#da765f"
+                          strokeDasharray="5 5"
+                          strokeWidth={1.5}
+                        />
                         <Line
                           activeDot={{ r: 5, fill: '#59c99c', stroke: '#e5eee8', strokeWidth: 2 }}
                           dataKey="price"
-                          dot={false}
+                          dot={quote.provider === 'credit-agricole' && chartData.length === 1}
                           isAnimationActive={false}
                           stroke="#59c99c"
                           strokeWidth={2.5}
@@ -406,14 +459,16 @@ export default function App() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="chart-empty">Aucune cotation disponible dans cette période.</div>
+                    <div className="chart-empty">
+                      Aucune observation enregistrée pour cette valeur.
+                    </div>
                   )}
                 </div>
                 <div className="chart-footnote">
                   <span><Clock3 size={14} /> Actualisé {formatTime(Date.parse(quote.fetchedAt))}</span>
                   <span>
                     {quote.provider === 'credit-agricole'
-                      ? 'Historique non fourni'
+                      ? `${chartData.length} observations enregistrées`
                       : `${chartData.length} points de cotation`}
                   </span>
                 </div>
